@@ -39,15 +39,16 @@ export default class SoundSpectrum extends EventDispatcher {
 
   constructor() {
     super();
-    this._loader;
-    this._svg;
-    this._path;
-    this._point;
-    this.dispatcher.addEventListener(Event.RENDER, this.renderHandler);
+    // this._loader;
+    // this._svg;
+    // this._path;
+    // this._point;
+    // this.dispatcher.addEventListener(Event.RENDER, this.renderHandler);
   }
 
   //__________________________________________________________________________________
   // methods
+  /*
   load(path, autoPlay){
     let callback=()=>{
       this.createSvg();
@@ -183,5 +184,5 @@ export default class SoundSpectrum extends EventDispatcher {
   get rotation(){
     return this._rotation;
   }
-
+*/
 }

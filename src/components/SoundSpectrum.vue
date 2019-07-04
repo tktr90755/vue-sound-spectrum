@@ -7,6 +7,7 @@
 </template>
 
 <script>
+import SoundSpectrum from '@/assets/js/libs/tk90755/sound/SoundSpectrum.js'
 import Ticker from '@/assets/js/libs/tk90755/display/Ticker.js'
 export default {
   name: 'SoundSpectrum',
