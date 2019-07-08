@@ -1,6 +1,8 @@
 <template>
   <div id="app">
-    <SoundSpectrum />
+    <SoundSpectrum ref="ss" width='500' height='100' color='#FF0000' backgroundColor='#000000' alpha='1'/>
+    <input type="file" ref="thefile" accept="audio/*" />
+    <audio ref="audio" controls></audio>
   </div>
 </template>
 
@@ -11,17 +13,20 @@ export default {
   name: 'app',
   components: {
     SoundSpectrum
+  },
+  mounted() {
+    let file = this.$refs["thefile"];
+    let files = [];
+    let audio = this.$refs["audio"];
+    audio.loop = true;
+    
+    file.onchange =(e)=> {
+      files = e.currentTarget.files;
+      audio.src = URL.createObjectURL(files[0]);
+      audio.load();
+      audio.play();
+      this.$refs['ss'].onChange(audio)
+    }
   }
 }
 </script>
-
-<style>
-#app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-</style>

@@ -3,7 +3,7 @@
  * Proprietary and Confidential
  * Do not redistribute
  * 
- * @title tktr90755.media.SvgPlayer.js
+ * @title tktr90755.sound.SoundSpectrum.js
  * @author 
  * @version 0.1.0 
  * @update 
@@ -12,25 +12,24 @@
 //__________________________________________________________________________________
 // How to use
 /*
-let svgPlayer = new SvgPlayer();
-svgPlayer.speed = 1;
-svgPlayer.dispatcher.addEventListener(Event.INIT, ()=>{
-  console.log("Event.INIT")
-  svgPlayer.play()
-});
-svgPlayer.dispatcher.addEventListener(Event.START, ()=>{
-  console.log("Event.START")
-});
-svgPlayer.dispatcher.addEventListener(Event.RENDER, ()=>{
-  console.log("Event.RENDER")
-  this.$el.style.left = svgPlayer.point.x + "px";
-  this.$el.style.top = svgPlayer.point.y + "px";
-  this.$el.style.transform = 'rotate(' + svgPlayer.rotation + 'deg)';
-});
-svgPlayer.dispatcher.addEventListener(Event.COMPLETE, ()=>{
-  console.log("Event.COMPLETE")
-});
-svgPlayer.load('test.svg', false)//第二引数をtrueにすると自動的にplay()する
+let canvas = document.getElementById("canvas");
+canvas.width = this.width;
+canvas.height = this.height;
+
+let file = document.getElementById("thefile");
+let files = [];
+let audio = document.getElementById("audio");
+audio.loop = true;
+let soundSpectrum = new SoundSpectrum(canvas, canvas.width, canvas.height);
+
+file.onchange = function() {
+  files = this.files;
+  audio.src = URL.createObjectURL(files[0]);
+  audio.load();
+  audio.play();
+  soundSpectrum.init(audio)
+  soundSpectrum.start()
+}
 */
 import EventDispatcher from '@/assets/js/libs/tk90755/events/EventDispatcher.js'
 import Ticker from '@/assets/js/libs/tk90755/display/Ticker.js'
@@ -59,6 +58,7 @@ export default class SoundSpectrum extends EventDispatcher {
     this._barHeight = 0;
     this._count = 0;
     this._ctx = undefined;
+    this.wm = new WeakMap();
     
     let c = MathUtil.hexToRgb(this._color)
     let bgc = MathUtil.hexToRgb(this._backgroundColor)
@@ -72,12 +72,16 @@ export default class SoundSpectrum extends EventDispatcher {
     }
   }
 
-  //__________________________________________________________________________________
-  // methods
-  init=(audio)=>{
+  init(audio){
     this._audio = audio;
     this._context = new AudioContext();
-    this._src = this._context.createMediaElementSource(this._audio);
+    // this._src = this._context.createMediaElementSource(this._audio);
+    if (this.wm.has(this._audio)) { 
+      this._src = this.wm.get(this._audio); 
+    } else { 
+      this._src = this._context.createMediaElementSource(this._audio); 
+      this.wm.set(this._audio, this._src); 
+    }     
     this._analyser = this._context.createAnalyser();
     this._src.connect(this._analyser);
     this._analyser.connect(this._context.destination);
@@ -96,10 +100,9 @@ export default class SoundSpectrum extends EventDispatcher {
   }
 
   _render=()=>{
-    if(this._analyser === undefined)return;
-    // if(this._canvas === undefined)return;
+    if(this._analyser === undefined || this._canvas === undefined)return;
 
-    this._ctx.fillStyle = "rgb(" + this.rgb.bgr + "," + this.rgb.bgg + "," + this.rgb.bgb + "," + this.alpha + ")";
+    this._ctx.fillStyle = "rgb(" + this.rgb.bgr + "," + this.rgb.bgg + "," + this.rgb.bgb + "," + this._alpha + ")";
     this._ctx.fillRect(0, 0, this._width, this._height);
 
     this._analyser.getByteTimeDomainData(this._dataArray);
@@ -111,15 +114,17 @@ export default class SoundSpectrum extends EventDispatcher {
       let normalizedHeight = this._barHeight / max;
       
       let value = 1 - normalizedHeight;
-      let value2 = -((100 * value) + 1);
-      this._ctx.fillStyle = "rgb(" + this.rgb.r + "," + this.rgb.g + "," + this.rgb.b + "," + this.alpha + ")";
-      this._ctx.fillRect(this._count, 100, 1, value2);
+      let value2 = -((this._height * value) + 1);
+      this._ctx.fillStyle = "rgb(" + this.rgb.r + "," + this.rgb.g + "," + this.rgb.b + "," + this._alpha + ")";
+      this._ctx.fillRect(this._count, this._height, 1, value2);
       this._count++;
     }
   }
 
   start(){
-    Ticker.add(this._render, 'play_' + this._id, false)
+    if(Ticker.hasItem('play_' + this._id) === false){
+      Ticker.add(this._render, 'play_' + this._id, false)
+    }
   }
 
   stop(){
