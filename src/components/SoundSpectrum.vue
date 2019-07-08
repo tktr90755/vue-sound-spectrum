@@ -45,7 +45,7 @@ export default {
 
       src.connect(analyser);
       analyser.connect(context.destination);
-      analyser.fftSize = 256;
+      // analyser.fftSize = 256;
       bufferLength = analyser.frequencyBinCount;
 
       dataArray = new Uint8Array(bufferLength);

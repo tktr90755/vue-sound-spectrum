@@ -32,157 +32,107 @@ svgPlayer.dispatcher.addEventListener(Event.COMPLETE, ()=>{
 });
 svgPlayer.load('test.svg', false)//第二引数をtrueにすると自動的にplay()する
 */
-import Event from '@/assets/js/libs/tk90755/events/Event.js'
 import EventDispatcher from '@/assets/js/libs/tk90755/events/EventDispatcher.js'
 import Ticker from '@/assets/js/libs/tk90755/display/Ticker.js'
+import MathUtil from '@/assets/js/libs/tk90755/utils/MathUtil.js'
 export default class SoundSpectrum extends EventDispatcher {
 
-  constructor() {
+  constructor(canvas, width, height, color, backgroundColor, alpha) {
     super();
-    // this._loader;
-    // this._svg;
-    // this._path;
-    // this._point;
-    // this.dispatcher.addEventListener(Event.RENDER, this.renderHandler);
+    this._id = new Date().getTime().toString(16)  + Math.floor(1000000 * Math.random()).toString(16);
+
+    this._canvas = (canvas !== undefined)?canvas:undefined;
+    this._width = (width !== undefined)?width:100;
+    this._height = (height !== undefined)?height:50;
+    this._color = (color !== undefined)?color:'#000000';
+    this._backgroundColor = (backgroundColor !== undefined)?backgroundColor:'#FFFFFF';
+    this._alpha = (alpha !== undefined)?alpha:1;
+    
+
+    this._audio = undefined;
+    this._context = undefined;
+    this._src = undefined;
+    this._analyser = undefined;
+    this._bufferLength = undefined;
+    this._dataArray = undefined;
+    this._barWidth = 0;
+    this._barHeight = 0;
+    this._count = 0;
+    this._ctx = undefined;
+    
+    let c = MathUtil.hexToRgb(this._color)
+    let bgc = MathUtil.hexToRgb(this._backgroundColor)
+    this.rgb = {
+      r:c.r,
+      g:c.g,
+      b:c.b,
+      bgr:bgc.r,
+      bgg:bgc.g,
+      bgb:bgc.b
+    }
   }
 
   //__________________________________________________________________________________
   // methods
-  /*
-  load(path, autoPlay){
-    let callback=()=>{
-      this.createSvg();
-      this.renderInitEvent();
-      if(autoPlay !== false) this.play();
+  init=(audio)=>{
+    this._audio = audio;
+    this._context = new AudioContext();
+    this._src = this._context.createMediaElementSource(this._audio);
+    this._analyser = this._context.createAnalyser();
+    this._src.connect(this._analyser);
+    this._analyser.connect(this._context.destination);
+    this._bufferLength = this._analyser.frequencyBinCount;
+    this._dataArray = new Uint8Array(this._bufferLength);
+    this._barWidth = (this._width / this._bufferLength) * 2.5;
+    this._ctx = this._canvas.getContext("2d");
+  }
+
+  getMax(l){
+    let m = 0;
+    for(let i in l){
+      if(m <= l[i])m = l[i];
     }
-    this._loader = new SvgLoader(callback);
-    this._loader.load(path);
+    return m;
   }
 
-  kill(){
-    this.dispatcher.removeEventListener(Event.RENDER, this.renderHandler);
+  _render=()=>{
+    if(this._analyser === undefined)return;
+    // if(this._canvas === undefined)return;
 
-    this.stop()
-    super.kill()
+    this._ctx.fillStyle = "rgb(" + this.rgb.bgr + "," + this.rgb.bgg + "," + this.rgb.bgb + "," + this.alpha + ")";
+    this._ctx.fillRect(0, 0, this._width, this._height);
 
-    this._loader = null;
-    this._svg = null;
-    this._path = null;
-    this._point = null;
-    this._rotation = 0;
+    this._analyser.getByteTimeDomainData(this._dataArray);
+    let max = this.getMax(this._dataArray)
+    this._count = 0;
+
+    for (let i = 0; i < this._bufferLength; i++) {
+      this._barHeight = this._dataArray[i];
+      let normalizedHeight = this._barHeight / max;
+      
+      let value = 1 - normalizedHeight;
+      let value2 = -((100 * value) + 1);
+      this._ctx.fillStyle = "rgb(" + this.rgb.r + "," + this.rgb.g + "," + this.rgb.b + "," + this.alpha + ")";
+      this._ctx.fillRect(this._count, 100, 1, value2);
+      this._count++;
+    }
   }
 
-  play(){
-    super.play()
-  }
-
-  resume(){
-    super.resume()
-  }
-
-  pause(){
-    super.pause()
+  start(){
+    Ticker.add(this._render, 'play_' + this._id, false)
   }
 
   stop(){
-    super.stop()
+    Ticker.kill('play_' + this._id, false)
   }
-
-  seek(seekTime){
-    super.seek(seekTime)
-  }
-  
-  //__________________________________________________________________________________
-  // svg
-  createSvg(){
-    let i;
-    let targets = String(this._loader.content).split('\n');
-    let viewBoxTexts = '';
-    let pathTexts = '';
-    
-    for(i in targets){
-      let viewBoxPosition = String(targets[i].search('viewBox='));
-      if(viewBoxTexts === '' && viewBoxPosition != -1){
-        viewBoxTexts = String(targets[i]).substr(viewBoxPosition, String(targets[i]).length);
-      }
-    }
-    if(viewBoxTexts != ''){
-      viewBoxTexts = viewBoxTexts.split('viewBox=').join('');
-      viewBoxTexts = viewBoxTexts.split('"').join('');
-    }
-
-    for(i in targets){
-      if(pathTexts === '' && String(targets[i].search('<path'))!=-1){
-        pathTexts = targets[i];
-      }
-    }
-
-    if(pathTexts == '') return;
-    pathTexts = pathTexts.split('<path ').join('');
-    pathTexts = pathTexts.split('/>').join('');
-    pathTexts = String(pathTexts).split(' ');
-
-    let o = {};
-    for(i in pathTexts){
-      let data = String(pathTexts[i]).split('=');
-      o[data[0]] = data[1].split('"').join('');
-    }
-
-    let xmlns = "http://www.w3.org/2000/svg";
-    this._svg = document.createElementNS (xmlns, "svg");
-    this._svg.setAttributeNS (null, "version", 1.1);
-    this._svg.setAttributeNS (null, "id", "svg" + this.id);
-    this._svg.setAttributeNS (null, "x", "0px");
-    this._svg.setAttributeNS (null, "y", "0px");
-    this._svg.setAttributeNS (null, "viewBox", viewBoxTexts);
-
-    this._path = document.createElementNS(xmlns,"path");  
-    this._path.setAttribute("id", "path" + this.id);
-    if(o['fill'] !== undefined) this._path.setAttribute("fill", o['fill']);
-    if(o['stroke'] !== undefined) this._path.setAttribute("stroke", o['stroke']);  
-    if(o['stroke-miterlimit'] !== undefined) this._path.setAttribute("stroke-miterlimit", o['stroke-miterlimit']); 
-    if(o['d'] !== undefined) this._path.setAttribute("d", o['d']);
-
-    this._svg.appendChild(this._path);
-
-    this.totalFrames = this._path.getTotalLength();
-    this.currentFrame = 0;
-  }
-  //__________________________________________________________________________________
-  // Event Handler
-  renderHandler=()=>{
-    this._point = this._path.getPointAtLength(this.currentFrame);
-    let point2 = this._path.getPointAtLength((this.currentFrame == 0)?0:this.currentFrame-1);
-    this._rotation = this._radian(this._point.x, this._point.y, point2.x, point2.y);
-  }
-
-  _radian($ax, $ay, $bx, $by){
-    let dx = $ax - $bx;
-    let dy = $ay - $by;
-    let radian = Math.atan2(dy, dx);
-    return radian * 180 / Math.PI;
-  };
 
   //__________________________________________________________________________________
   // getter
-  get loader(){
-    return this._loader;
+  get canvas(){
+    return this._canvas;
   }
 
-  get svg(){
-    return this._svg;
+  set canvas(v){
+    this._canvas = v;
   }
-
-  get path(){
-    return this._path;
-  }
-
-  get point(){
-    return this._point;
-  }
-
-  get rotation(){
-    return this._rotation;
-  }
-*/
 }
